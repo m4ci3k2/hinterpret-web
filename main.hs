@@ -15,9 +15,7 @@ handler =
   do
     decodeBody myPolicy
     method POST
---    ok $ (toResponse "dupa") {rsHeaders = mkHeaders [("Access-Control-Allow-Origin", "*")]}
---    msum [handlerWithAdditions, handlerSimple]
-    handlerSimple
+    msum [handlerWithAdditions, handlerSimple]
 
 handlerWithAdditions  :: ServerPart Response
 handlerWithAdditions =
@@ -29,12 +27,12 @@ handlerWithAdditions =
         outa <- openFile (combine td "add.tar.gz") WriteMode
         hPutStr outf file
         hPutStr outa addition
-        ecode' <- system $ "cd " ++ td ++ "&& (tar zxf add.tar.gz && ghc --make file.hs >/dev/null && ./file) > temporary 2>&1"
+        hFlush outf
+        hFlush outa
+        ecode' <- system $ "cd " ++ td ++ "&& ((base64 -d < add.tar.gz | tar zx) && ghc --make file.hs >/dev/null && ./file) > temporary 2>&1"
         str' <- readFile $ combine td "temporary" 
         return (ecode', str')
---        system $ "( cd " ++ td ++ " && tar zxf add.tar.gz &&  ghc --make file.hs &&  ./file.hs) >> temporary 2>&1"
-    str <- liftIO $ readFile $ combine "dupa" "temporary" 
-    ok $ (toResponse $ show ecode ++ str) {rsHeaders = mkHeaders [("Access-Control-Allow-Origin", "*")]}
+    ok $ (toResponse $ show ecode ++ "\n" ++ str) {rsHeaders = mkHeaders [("Access-Control-Allow-Origin", "*")]}
 
 handlerSimple  :: ServerPart Response
 handlerSimple =
@@ -53,4 +51,3 @@ main :: IO ()
 main =
   let config = nullConf in
   simpleHTTP nullConf $ handler 
--- handler
